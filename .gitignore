@@ -1,0 +1,44 @@
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Expo
+.expo/
+.expo-shared/
+dist/
+web-build/
+expo-env.d.ts
+
+# Native build artifacts
+android/build/
+android/app/build/
+android/.gradle/
+android/.idea/
+android/local.properties
+android/captures/
+android/.cxx/
+ios/build/
+ios/Pods/
+ios/.xcode.env.local
+*.jks
+*.keystore
+!debug.keystore
+
+# Metro / Babel / Jest
+.metro-health-check*
+coverage/
+
+# Misc
+.DS_Store
+Thumbs.db
+*.log
+.env
+.env.*
+!.env.example
+
+# IDE
+.vscode/
+.idea/
+*.swp
