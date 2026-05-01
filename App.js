@@ -9,23 +9,6 @@ import { GameProvider } from './src/context/GameContext';
 import LoadingScreen from './src/screens/LoadingScreen';
 import GameContainer from './src/screens/GameContainer';
 
-// Try to initialize AdMob; gracefully no-op in Expo Go where the native module is absent.
-let mobileAdsReady = false;
-try {
-  // eslint-disable-next-line global-require
-  const mobileAds = require('react-native-google-mobile-ads').default;
-  if (mobileAds) {
-    mobileAds()
-      .initialize()
-      .then(() => {
-        mobileAdsReady = true;
-      })
-      .catch(() => {});
-  }
-} catch (e) {
-  // Module not linked (e.g. running in Expo Go) — placeholders will render instead.
-}
-
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
 export default function App() {

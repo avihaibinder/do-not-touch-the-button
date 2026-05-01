@@ -5,20 +5,12 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
-    "splash": {
-      "resizeMode": "contain",
-      "backgroundColor": "#FFE66D"
-    },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.example.donotclickthebutton",
-      "infoPlist": {
-        "GADApplicationIdentifier": "ca-app-pub-3940256099942544~1458002511",
-        "SKAdNetworkItems": [
-          {"SKAdNetworkIdentifier": "cstr6suwn9.skadnetwork"}
-        ]
-      }
+      "bundleIdentifier": "com.example.donotclickthebutton"
     },
     "android": {
       "package": "com.example.donotclickthebutton",
@@ -28,16 +20,10 @@
     },
     "web": {},
     "plugins": [
-      [
-        "react-native-google-mobile-ads",
-        {
-          "androidAppId": "ca-app-pub-3940256099942544~3347511713",
-          "iosAppId": "ca-app-pub-3940256099942544~1458002511"
-        }
-      ]
+      "expo-font"
     ],
     "extra": {
-      "comment": "Replace AdMob IDs above with your real Google AdMob app IDs before publishing. Drop icon.png / splash.png / adaptive-icon.png into ./assets/ and reference them here when ready."
+      "comment": "Drop icon.png / splash.png / adaptive-icon.png into ./assets/ and reference them here when ready."
     }
   }
 }

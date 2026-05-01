@@ -4,53 +4,19 @@ import useResponsive from '../hooks/useResponsive';
 import { colors } from '../theme/colors';
 
 /**
- * AdMob banner placeholder.
+ * Ad banner placeholder.
  *
- * In Expo Go (no native AdMob module), we render a labelled placeholder.
- * In a dev/production build with `react-native-google-mobile-ads`, we render
- * a real BannerAd at the bottom.
- *
- * Replace TEST_BANNER_ID with your real AdMob unit IDs from app.json `extra`
- * before publishing.
+ * AdMob has been removed from this build. To re-enable ads, install
+ * `react-native-google-mobile-ads`, add it back to app.json plugins,
+ * and replace this component with a real BannerAd render.
  */
-
-let BannerAd = null;
-let BannerAdSize = null;
-let TestIds = null;
-try {
-  // eslint-disable-next-line global-require
-  const ads = require('react-native-google-mobile-ads');
-  BannerAd = ads.BannerAd;
-  BannerAdSize = ads.BannerAdSize;
-  TestIds = ads.TestIds;
-} catch (e) {
-  // running without native module — placeholder only
-}
-
-const TEST_BANNER_ID = TestIds?.BANNER || 'ca-app-pub-3940256099942544/6300978111';
-
-export default function AdBanner({ position = 'bottom', adUnitId }) {
+export default function AdBanner({ position = 'bottom' }) {
   const { ms, fs } = useResponsive();
-  const unit = adUnitId || TEST_BANNER_ID;
-
-  if (BannerAd) {
-    return (
-      <View style={[styles.wrap, position === 'top' ? styles.top : styles.bottom]}>
-        <BannerAd
-          unitId={unit}
-          size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
-          requestOptions={{ requestNonPersonalizedAdsOnly: true }}
-        />
-      </View>
-    );
-  }
-
-  // Placeholder
   return (
     <View style={[styles.wrap, position === 'top' ? styles.top : styles.bottom]}>
       <View style={[styles.placeholder, { paddingVertical: ms(8) }]}>
         <Text style={[styles.text, { fontSize: fs(11) }]}>
-          AD PLACEHOLDER · AdMob banner renders here in a native build
+          AD PLACEHOLDER
         </Text>
       </View>
     </View>
