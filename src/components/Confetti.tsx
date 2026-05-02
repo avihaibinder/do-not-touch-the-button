@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { View, StyleSheet, Dimensions } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -9,15 +9,39 @@ import Animated, {
 } from 'react-native-reanimated';
 import { colors } from '../theme/colors';
 
+export interface ConfettiProps {
+  active?: boolean;
+  count?: number;
+}
+
+type Shape = 'rect' | 'circle';
+
+interface PieceSpec {
+  id: number;
+  angle: number;
+  distance: number;
+  delay: number;
+  duration: number;
+  size: number;
+  color: string;
+  rotateEnd: number;
+  shape: Shape;
+}
+
+interface PieceProps extends PieceSpec {
+  cx: number;
+  cy: number;
+}
+
 /**
  * Lightweight confetti burst. ~40 pieces flying outward on mount.
  * Used by SuccessModal.
  */
-export default function Confetti({ active = true, count = 40 }) {
+export default function Confetti({ active = true, count = 40 }: ConfettiProps) {
   const { width, height } = Dimensions.get('window');
   const palette = [colors.red, colors.yellow, colors.turquoise, colors.purple, colors.green, colors.orange];
 
-  const pieces = useMemo(() => {
+  const pieces = useMemo<PieceSpec[]>(() => {
     return new Array(count).fill(0).map((_, i) => ({
       id: i,
       angle: Math.random() * Math.PI * 2,
@@ -41,7 +65,7 @@ export default function Confetti({ active = true, count = 40 }) {
   );
 }
 
-function Piece({ angle, distance, delay, duration, size, color, rotateEnd, shape, cx, cy }) {
+function Piece({ angle, distance, delay, duration, size, color, rotateEnd, shape, cx, cy }: PieceProps) {
   const t = useSharedValue(0);
   const r = useSharedValue(0);
 

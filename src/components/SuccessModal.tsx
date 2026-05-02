@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { View, Text, StyleSheet, Pressable, Modal } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -7,12 +7,24 @@ import Animated, {
   withSequence,
   withSpring,
   withTiming,
-  Easing,
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import useResponsive from '../hooks/useResponsive';
+import useSounds from '../hooks/useSounds';
 import { colors, gradients } from '../theme/colors';
 import Confetti from './Confetti';
+
+export interface SuccessModalProps {
+  visible: boolean;
+  levelNumber: number;
+  levelName?: string;
+  timeSeconds?: number | null;
+  isBoss?: boolean;
+  isFinalLevel?: boolean;
+  onNext?: () => void;
+  onReplay?: () => void;
+  onMenu?: () => void;
+}
 
 /**
  * Cartoon success modal – bouncy spring entrance, confetti burst, big buttons.
@@ -27,13 +39,20 @@ export default function SuccessModal({
   onNext,
   onReplay,
   onMenu,
-}) {
+}: SuccessModalProps) {
   const { ms, fs } = useResponsive();
+  const sounds = useSounds();
   const scale = useSharedValue(0);
   const titlePop = useSharedValue(0);
 
   useEffect(() => {
     if (visible) {
+      // Bigger payoff: 'success' as the lead, layered with a delayed 'bossWin'
+      // fanfare for boss/final wins so they feel meaningfully bigger.
+      sounds.play('success');
+      const t = (isFinalLevel || isBoss)
+        ? setTimeout(() => sounds.play('bossWin'), 180)
+        : null;
       scale.value = withSpring(1, { damping: 11, stiffness: 130, mass: 0.8 });
       titlePop.value = withDelay(140,
         withSequence(
@@ -41,11 +60,14 @@ export default function SuccessModal({
           withSpring(1.0,  { damping: 9, stiffness: 200 }),
         )
       );
+      return () => { if (t) clearTimeout(t); };
     } else {
       scale.value = 0;
       titlePop.value = 0;
     }
   }, [visible]);
+
+  const playClick = () => sounds.play('pop');
 
   const cardStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }, { rotate: `${(1 - scale.value) * -8}deg` }],
@@ -116,14 +138,14 @@ export default function SuccessModal({
             {!isFinalLevel && (
               <BigBtn
                 label="NEXT LEVEL ▶"
-                onPress={onNext}
+                onPress={() => { playClick(); onNext?.(); }}
                 fs={fs} ms={ms}
                 bg={colors.yellow}
                 color={colors.ink}
               />
             )}
-            <BigBtn label="PLAY AGAIN" onPress={onReplay} fs={fs} ms={ms} bg={colors.white} color={colors.ink} />
-            <BigBtn label="MENU" onPress={onMenu} fs={fs} ms={ms} bg={colors.purple} color={colors.white} />
+            <BigBtn label="PLAY AGAIN" onPress={() => { playClick(); onReplay?.(); }} fs={fs} ms={ms} bg={colors.white} color={colors.ink} />
+            <BigBtn label="MENU" onPress={() => { playClick(); onMenu?.(); }} fs={fs} ms={ms} bg={colors.purple} color={colors.white} />
           </View>
         </Animated.View>
       </View>
@@ -131,7 +153,16 @@ export default function SuccessModal({
   );
 }
 
-function BigBtn({ label, onPress, fs, ms, bg, color }) {
+interface BigBtnProps {
+  label: string;
+  onPress: () => void;
+  fs: (n: number) => number;
+  ms: (n: number) => number;
+  bg: string;
+  color: string;
+}
+
+function BigBtn({ label, onPress, fs, ms, bg, color }: BigBtnProps) {
   const press = useSharedValue(0);
   const style = useAnimatedStyle(() => ({
     transform: [{ scale: 1 - 0.04 * press.value }],
@@ -140,8 +171,8 @@ function BigBtn({ label, onPress, fs, ms, bg, color }) {
     <Animated.View style={style}>
       <Pressable
         onPress={onPress}
-        onPressIn={() => (press.value = withTiming(1, { duration: 80 }))}
-        onPressOut={() => (press.value = withTiming(0, { duration: 120 }))}
+        onPressIn={() => { press.value = withTiming(1, { duration: 80 }); }}
+        onPressOut={() => { press.value = withTiming(0, { duration: 120 }); }}
         style={[
           styles.bigBtn,
           {

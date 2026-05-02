@@ -1,7 +1,10 @@
-import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import useResponsive from '../hooks/useResponsive';
 import { colors } from '../theme/colors';
+
+export interface AdBannerProps {
+  position?: 'top' | 'bottom';
+}
 
 /**
  * Ad banner placeholder.
@@ -10,7 +13,7 @@ import { colors } from '../theme/colors';
  * `react-native-google-mobile-ads`, add it back to app.json plugins,
  * and replace this component with a real BannerAd render.
  */
-export default function AdBanner({ position = 'bottom' }) {
+export default function AdBanner({ position = 'bottom' }: AdBannerProps) {
   const { ms, fs } = useResponsive();
   return (
     <View style={[styles.wrap, position === 'top' ? styles.top : styles.bottom]}>

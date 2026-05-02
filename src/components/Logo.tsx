@@ -1,4 +1,3 @@
-import React from 'react';
 import Svg, {
   Defs,
   RadialGradient,
@@ -10,16 +9,18 @@ import Svg, {
   G,
   Rect,
 } from 'react-native-svg';
+import type { Expression } from '../types';
+
+export interface LogoProps {
+  size?: number;
+  showText?: boolean;
+  expression?: Expression;
+}
 
 /**
  * Cartoon Logo: a mischievous red button character.
- *
- * Props:
- *   size (number)              – diameter in pixels of the button face
- *   showText (bool)            – render "DO NOT CLICK" curved text overlay
- *   expression ('grin' | 'wink' | 'evil' | 'shock' | 'happy')
  */
-export default function Logo({ size = 220, showText = true, expression = 'grin' }) {
+export default function Logo({ size = 220, showText = true, expression = 'grin' }: LogoProps) {
   const s = size;
   const cx = s / 2;
   const cy = s / 2;
@@ -90,12 +91,18 @@ export default function Logo({ size = 220, showText = true, expression = 'grin' 
   );
 }
 
-function Face({ cx, cy, r, expression }) {
+interface FaceProps {
+  cx: number;
+  cy: number;
+  r: number;
+  expression: Expression;
+}
+
+function Face({ cx, cy, r, expression }: FaceProps) {
   const eyeY = cy - r * 0.10;
   const eyeXOff = r * 0.32;
   const eyeR = r * 0.10;
 
-  // Eyes
   const leftEye = (
     <G>
       <Circle cx={cx - eyeXOff} cy={eyeY} r={eyeR} fill="#1A1A2E" />
@@ -118,7 +125,6 @@ function Face({ cx, cy, r, expression }) {
     />
   );
 
-  // Eyebrows
   const browL = (
     <Path
       d={`M ${cx - eyeXOff - eyeR} ${eyeY - eyeR * 1.3} Q ${cx - eyeXOff} ${eyeY - eyeR * 2.0} ${cx - eyeXOff + eyeR} ${eyeY - eyeR * 1.0}`}
@@ -132,7 +138,6 @@ function Face({ cx, cy, r, expression }) {
     />
   );
 
-  // Evil V brows
   const evilBrowL = (
     <Path d={`M ${cx - eyeXOff - eyeR} ${eyeY - eyeR * 1.6} L ${cx - eyeXOff + eyeR} ${eyeY - eyeR * 0.8}`}
       stroke="#1A1A2E" strokeWidth={r * 0.07} strokeLinecap="round" />
@@ -142,7 +147,6 @@ function Face({ cx, cy, r, expression }) {
       stroke="#1A1A2E" strokeWidth={r * 0.07} strokeLinecap="round" />
   );
 
-  // Mouths
   const mouthGrin = (
     <Path
       d={`M ${cx - r * 0.32} ${cy + r * 0.20}
@@ -171,7 +175,6 @@ function Face({ cx, cy, r, expression }) {
 
   let brows = (<>{browL}{browR}</>);
   let mouth = mouthGrin;
-  let leftE = leftEye;
   let rightE = rightEyeOpen;
 
   if (expression === 'wink')   { rightE = rightEyeWink; mouth = mouthGrin; }
@@ -179,7 +182,6 @@ function Face({ cx, cy, r, expression }) {
   if (expression === 'evil')   { brows = (<>{evilBrowL}{evilBrowR}</>); mouth = mouthEvil; }
   if (expression === 'happy')  { mouth = mouthHappy; }
 
-  // Cheeks
   const cheekL = (
     <Ellipse cx={cx - r * 0.50} cy={cy + r * 0.10} rx={r * 0.10} ry={r * 0.06}
       fill="rgba(255,255,255,0.30)" />
@@ -192,7 +194,7 @@ function Face({ cx, cy, r, expression }) {
   return (
     <G>
       {brows}
-      {leftE}
+      {leftEye}
       {rightE}
       {cheekL}
       {cheekR}
@@ -202,10 +204,8 @@ function Face({ cx, cy, r, expression }) {
 }
 
 // Tiny custom path that spells "DO NOT CLICK" using basic strokes —
-// avoids needing a font asset for the logo.  It's not pretty letterforms,
-// but it's recognisable as a marquee.
-function titlePath(cx, cy, h) {
-  // We render a series of bar-block letters across the badge.
+// avoids needing a font asset for the logo.
+function titlePath(cx: number, cy: number, h: number): string {
   const text = 'DO NOT CLICK';
   const letterW = h * 1.0;
   const gap = h * 0.45;
@@ -222,12 +222,13 @@ function titlePath(cx, cy, h) {
 }
 
 // Minimal block-letter glyphs (good enough for a logo badge).
-function letterToPath(ch, x, y, w, h) {
+function letterToPath(ch: string, x: number, y: number, w: number, h: number): string {
   const t = h * 0.18; // stroke thickness
   const mid = y + h / 2 - t / 2;
   const right = x + w - t;
   const bottom = y + h - t;
-  const seg = (sx, sy, sw, sh) => `M ${sx} ${sy} h ${sw} v ${sh} h ${-sw} Z `;
+  const seg = (sx: number, sy: number, sw: number, sh: number) =>
+    `M ${sx} ${sy} h ${sw} v ${sh} h ${-sw} Z `;
   switch (ch) {
     case 'D': return seg(x, y, t, h) + seg(x, y, w * 0.85, t) + seg(x, bottom, w * 0.85, t) + seg(right, y + t, t, h - t * 2);
     case 'O': return seg(x, y, w, t) + seg(x, bottom, w, t) + seg(x, y, t, h) + seg(right, y, t, h);

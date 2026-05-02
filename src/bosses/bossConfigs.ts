@@ -1,10 +1,12 @@
+import type { BossConfig, BossWithHp } from '../types';
+
 /**
  * 3 boss configs. Each appears every 10 levels (10, 20, 30).
  *
  * A boss is a sequence of phases. Each phase requires `hits` taps on the real
  * button while running its `mechanic`. Total HP = sum of hits.
  */
-export const BOSSES = {
+export const BOSSES: Record<number, BossConfig> = {
   1: {
     id: 1,
     name: 'Wobbly McButton',
@@ -54,7 +56,8 @@ export const BOSSES = {
   },
 };
 
-export function getBoss(id) {
+export function getBoss(id: number | null | undefined): BossWithHp | null {
+  if (id == null) return null;
   const b = BOSSES[id];
   if (!b) return null;
   const totalHp = b.phases.reduce((s, p) => s + (p.hits || 0), 0);

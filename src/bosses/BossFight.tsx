@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -15,6 +15,18 @@ import useResponsive from '../hooks/useResponsive';
 import useHaptics from '../hooks/useHaptics';
 import useSounds from '../hooks/useSounds';
 import { colors } from '../theme/colors';
+import type { BossPhase, BossWithHp, FailReason, PlayArea } from '../types';
+
+export interface BossFightProps {
+  boss: BossWithHp;
+  playArea: PlayArea;
+  buttonSize: number;
+  running: boolean;
+  onTapHit?: () => void;
+  onComplete?: () => void;
+  onFail?: (reason: FailReason) => void;
+  onPhaseChange?: (nextPhaseIdx: number) => void;
+}
 
 /**
  * Boss fight controller.
@@ -32,7 +44,7 @@ export default function BossFight({
   onComplete,
   onFail,
   onPhaseChange,
-}) {
+}: BossFightProps) {
   const { ms, fs } = useResponsive();
   const haptics = useHaptics();
   const sounds = useSounds();
@@ -87,7 +99,7 @@ export default function BossFight({
     setPhaseHits((p) => p + 1);
   };
 
-  const handleMechFail = (reason) => {
+  const handleMechFail = (reason: FailReason) => {
     if (!running) return;
     onFail?.(reason || 'default');
   };
@@ -131,9 +143,15 @@ export default function BossFight({
   );
 }
 
-function PhaseBanner({ phase, fs, ms }) {
+interface PhaseBannerProps {
+  phase: BossPhase;
+  fs: (n: number) => number;
+  ms: (n: number) => number;
+}
+
+function PhaseBanner({ phase, fs, ms }: PhaseBannerProps) {
   const t = useSharedValue(0);
-  React.useEffect(() => {
+  useEffect(() => {
     t.value = withSequence(
       withSpring(1, { damping: 12, stiffness: 150 }),
       withTiming(1, { duration: 1200 }),

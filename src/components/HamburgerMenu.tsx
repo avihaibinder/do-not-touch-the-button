@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import {
   View,
   Text,
@@ -13,16 +13,21 @@ import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withTiming,
-  withSpring,
   Easing,
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import useResponsive from '../hooks/useResponsive';
 import { useGame } from '../context/GameContext';
-import { colors, gradients } from '../theme/colors';
+import { colors } from '../theme/colors';
 import useHaptics from '../hooks/useHaptics';
 
-export function HamburgerButton({ onPress }) {
+const TOTAL_LEVELS = 30;
+
+export interface HamburgerButtonProps {
+  onPress?: () => void;
+}
+
+export function HamburgerButton({ onPress }: HamburgerButtonProps) {
   const { ms } = useResponsive();
   const sz = ms(46);
   return (
@@ -44,7 +49,12 @@ export function HamburgerButton({ onPress }) {
   );
 }
 
-export default function HamburgerMenu({ visible, onClose }) {
+export interface HamburgerMenuProps {
+  visible: boolean;
+  onClose?: () => void;
+}
+
+export default function HamburgerMenu({ visible, onClose }: HamburgerMenuProps) {
   const { ms, fs } = useResponsive();
   const haptics = useHaptics();
   const {
@@ -67,8 +77,6 @@ export default function HamburgerMenu({ visible, onClose }) {
     opacity: slide.value,
   }));
   const scrimStyle = useAnimatedStyle(() => ({ opacity: 0.55 * slide.value }));
-
-  const totalLevels = 30;
 
   const onResetPress = () => {
     haptics.warning();
@@ -130,7 +138,7 @@ export default function HamburgerMenu({ visible, onClose }) {
             <Stat label="Wins"        value={String(stats.totalWins || 0)}        fs={fs} ms={ms} />
             <Stat label="Fails"       value={String(stats.totalFails || 0)}       fs={fs} ms={ms} />
             <Stat label="Attempts"    value={String(stats.totalAttempts || 0)}    fs={fs} ms={ms} />
-            <Stat label="Levels done" value={`${(progress.completedLevels || []).length} / ${totalLevels}`} fs={fs} ms={ms} />
+            <Stat label="Levels done" value={`${(progress.completedLevels || []).length} / ${TOTAL_LEVELS}`} fs={fs} ms={ms} />
           </View>
 
           {/* Settings */}
@@ -160,7 +168,7 @@ export default function HamburgerMenu({ visible, onClose }) {
           <View style={[styles.card, { padding: ms(14), borderRadius: ms(16), marginBottom: ms(14) }]}>
             <Text style={[styles.cardTitle, { fontSize: fs(14) }]}>LEVEL SELECT</Text>
             <View style={styles.levelGrid}>
-              {Array.from({ length: totalLevels }).map((_, i) => {
+              {Array.from({ length: TOTAL_LEVELS }).map((_, i) => {
                 const n = i + 1;
                 const unlocked = n <= (progress.highestUnlockedLevel || 1);
                 const done = (progress.completedLevels || []).includes(n);
@@ -228,7 +236,14 @@ export default function HamburgerMenu({ visible, onClose }) {
   );
 }
 
-function Stat({ label, value, fs, ms }) {
+interface StatProps {
+  label: string;
+  value: string;
+  fs: (n: number) => number;
+  ms: (n: number) => number;
+}
+
+function Stat({ label, value, fs, ms }: StatProps) {
   return (
     <View style={[styles.statRow, { marginTop: ms(6) }]}>
       <Text style={[styles.statLabel, { fontSize: fs(13) }]}>{label}</Text>
@@ -237,7 +252,15 @@ function Stat({ label, value, fs, ms }) {
   );
 }
 
-function Toggle({ label, value, onChange, fs, ms }) {
+interface ToggleProps {
+  label: string;
+  value: boolean;
+  onChange: (v: boolean) => void;
+  fs: (n: number) => number;
+  ms: (n: number) => number;
+}
+
+function Toggle({ label, value, onChange, fs, ms }: ToggleProps) {
   return (
     <View style={[styles.toggleRow, { marginTop: ms(8) }]}>
       <Text style={[styles.toggleLabel, { fontSize: fs(14) }]}>{label}</Text>

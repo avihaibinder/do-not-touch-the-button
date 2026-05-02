@@ -1,10 +1,11 @@
-import React, {
+import {
   createContext,
   useContext,
   useEffect,
   useMemo,
   useState,
   useCallback,
+  type ReactNode,
 } from 'react';
 
 import {
@@ -15,17 +16,32 @@ import {
 } from '../hooks/useGameStorage';
 
 import { LEVELS, TOTAL_LEVELS } from '../levels/levelConfigs';
+import type { LevelConfig, Progress, Settings, Stats } from '../types';
 
-const GameContext = createContext(null);
+export interface GameContextValue {
+  hydrated: boolean;
+  progress: Progress;
+  settings: Settings;
+  stats: Stats;
+  currentLevel: number;
+  level: LevelConfig | undefined;
+  goToLevel: (n: number) => void;
+  goToNextLevel: () => void;
+  restartLevel: () => void;
+  completeLevel: (levelNumber: number, timeSeconds: number) => Promise<void>;
+  failLevel: () => Promise<void>;
+  updateSettings: (patch: Partial<Settings>) => void;
+  resetEverything: () => Promise<void>;
+}
 
-export function GameProvider({ children }) {
-  const [progress, setProgress] = useState(defaultProgress);
-  const [settings, setSettings] = useState(defaultSettings);
-  const [stats, setStats]       = useState(defaultStats);
+const GameContext = createContext<GameContextValue | null>(null);
+
+export function GameProvider({ children }: { children: ReactNode }) {
+  const [progress, setProgress] = useState<Progress>(defaultProgress);
+  const [settings, setSettings] = useState<Settings>(defaultSettings);
+  const [stats, setStats]       = useState<Stats>(defaultStats);
   const [hydrated, setHydrated] = useState(false);
 
-  // Routing state (very small, no react-navigation needed for this UX).
-  // route: 'level' | 'success' | 'fail' | 'menu'
   const [currentLevel, setCurrentLevel] = useState(1);
 
   useEffect(() => {
@@ -43,23 +59,23 @@ export function GameProvider({ children }) {
     })();
   }, []);
 
-  const persistProgress = useCallback(async (next) => {
+  const persistProgress = useCallback(async (next: Progress) => {
     setProgress(next);
     await saveProgress(next);
   }, []);
 
-  const persistSettings = useCallback(async (next) => {
+  const persistSettings = useCallback(async (next: Settings) => {
     setSettings(next);
     await saveSettings(next);
   }, []);
 
-  const persistStats = useCallback(async (next) => {
+  const persistStats = useCallback(async (next: Stats) => {
     setStats(next);
     await saveStats(next);
   }, []);
 
   const completeLevel = useCallback(
-    async (levelNumber, timeSeconds) => {
+    async (levelNumber: number, timeSeconds: number) => {
       const completed = Array.from(
         new Set([...(progress.completedLevels || []), levelNumber])
       );
@@ -94,7 +110,7 @@ export function GameProvider({ children }) {
     });
   }, [stats, persistStats]);
 
-  const goToLevel = useCallback((n) => {
+  const goToLevel = useCallback((n: number) => {
     setCurrentLevel(Math.max(1, Math.min(TOTAL_LEVELS, n)));
   }, []);
 
@@ -108,7 +124,7 @@ export function GameProvider({ children }) {
   }, []);
 
   const updateSettings = useCallback(
-    (patch) => {
+    (patch: Partial<Settings>) => {
       persistSettings({ ...settings, ...patch });
     },
     [settings, persistSettings]
@@ -122,7 +138,7 @@ export function GameProvider({ children }) {
     setCurrentLevel(1);
   }, []);
 
-  const value = useMemo(
+  const value = useMemo<GameContextValue>(
     () => ({
       hydrated,
       progress,
@@ -148,7 +164,7 @@ export function GameProvider({ children }) {
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;
 }
 
-export function useGame() {
+export function useGame(): GameContextValue {
   const ctx = useContext(GameContext);
   if (!ctx) throw new Error('useGame must be used within GameProvider');
   return ctx;

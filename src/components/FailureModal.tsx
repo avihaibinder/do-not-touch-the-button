@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { View, Text, StyleSheet, Pressable, Modal } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -6,20 +6,36 @@ import Animated, {
   withSpring,
   withTiming,
   withSequence,
-  Easing,
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import useResponsive from '../hooks/useResponsive';
+import useSounds from '../hooks/useSounds';
 import { colors, gradients } from '../theme/colors';
+import type { FailReason } from '../types';
 
-const REASON_COPY = {
-  timeout:  { title: 'TIME’S UP!',  sub: 'The button got away. Again.' },
-  trap:     { title: 'OUCH!',       sub: 'You tapped a trap.' },
-  decoy:    { title: 'GOTCHA!',     sub: 'That was a decoy.' },
-  rhythm:   { title: 'OFF BEAT',    sub: 'Your rhythm slipped. Try again.' },
-  proximity:{ title: 'TOO CLOSE',   sub: 'It dodges. You react.' },
-  default:  { title: 'NICE TRY',    sub: 'But the button wins this round.' },
+interface ReasonCopy {
+  title: string;
+  sub: string;
+}
+
+const REASON_COPY: Record<FailReason, ReasonCopy> = {
+  timeout:   { title: 'TIME’S UP!', sub: 'The button got away. Again.' },
+  trap:      { title: 'OUCH!',      sub: 'You tapped a trap.' },
+  decoy:     { title: 'GOTCHA!',    sub: 'That was a decoy.' },
+  rhythm:    { title: 'OFF BEAT',   sub: 'Your rhythm slipped. Try again.' },
+  proximity: { title: 'TOO CLOSE',  sub: 'It dodges. You react.' },
+  default:   { title: 'NICE TRY',   sub: 'But the button wins this round.' },
 };
+
+export interface FailureModalProps {
+  visible: boolean;
+  reason?: FailReason | null;
+  levelNumber: number;
+  levelName?: string;
+  timeSeconds?: number | null;
+  onRetry?: () => void;
+  onMenu?: () => void;
+}
 
 export default function FailureModal({
   visible,
@@ -29,13 +45,17 @@ export default function FailureModal({
   timeSeconds,
   onRetry,
   onMenu,
-}) {
+}: FailureModalProps) {
   const { ms, fs } = useResponsive();
+  const sounds = useSounds();
   const scale = useSharedValue(0);
   const shake = useSharedValue(0);
 
   useEffect(() => {
     if (visible) {
+      // Sad-trombone moment: a fail stinger followed by a deflated whoosh.
+      sounds.play('fail');
+      const t = setTimeout(() => sounds.play('whoosh'), 220);
       scale.value = withSpring(1, { damping: 12, stiffness: 130 });
       shake.value = withSequence(
         withTiming(1,  { duration: 60 }),
@@ -43,11 +63,14 @@ export default function FailureModal({
         withTiming(1,  { duration: 60 }),
         withTiming(0,  { duration: 60 }),
       );
+      return () => clearTimeout(t);
     } else {
       scale.value = 0;
       shake.value = 0;
     }
   }, [visible]);
+
+  const playClick = () => sounds.play('pop');
 
   const cardStyle = useAnimatedStyle(() => ({
     transform: [
@@ -58,7 +81,7 @@ export default function FailureModal({
     opacity: scale.value,
   }));
 
-  const r = REASON_COPY[reason] || REASON_COPY.default;
+  const r = REASON_COPY[reason ?? 'default'] ?? REASON_COPY.default;
 
   return (
     <Modal visible={visible} transparent animationType="fade">
@@ -97,8 +120,8 @@ export default function FailureModal({
           )}
 
           <View style={[styles.btnCol, { marginTop: ms(20), gap: ms(10) }]}>
-            <BigBtn label="TRY AGAIN ↻" onPress={onRetry} fs={fs} ms={ms} bg={colors.yellow} color={colors.ink} />
-            <BigBtn label="MENU"        onPress={onMenu}  fs={fs} ms={ms} bg={colors.white} color={colors.ink} />
+            <BigBtn label="TRY AGAIN ↻" onPress={() => { playClick(); onRetry?.(); }} fs={fs} ms={ms} bg={colors.yellow} color={colors.ink} />
+            <BigBtn label="MENU"        onPress={() => { playClick(); onMenu?.();  }} fs={fs} ms={ms} bg={colors.white} color={colors.ink} />
           </View>
         </Animated.View>
       </View>
@@ -106,7 +129,16 @@ export default function FailureModal({
   );
 }
 
-function BigBtn({ label, onPress, fs, ms, bg, color }) {
+interface BigBtnProps {
+  label: string;
+  onPress: () => void;
+  fs: (n: number) => number;
+  ms: (n: number) => number;
+  bg: string;
+  color: string;
+}
+
+function BigBtn({ label, onPress, fs, ms, bg, color }: BigBtnProps) {
   const press = useSharedValue(0);
   const style = useAnimatedStyle(() => ({
     transform: [{ scale: 1 - 0.04 * press.value }],
@@ -115,8 +147,8 @@ function BigBtn({ label, onPress, fs, ms, bg, color }) {
     <Animated.View style={style}>
       <Pressable
         onPress={onPress}
-        onPressIn={() => (press.value = withTiming(1, { duration: 80 }))}
-        onPressOut={() => (press.value = withTiming(0, { duration: 120 }))}
+        onPressIn={() => { press.value = withTiming(1, { duration: 80 }); }}
+        onPressOut={() => { press.value = withTiming(0, { duration: 120 }); }}
         style={[
           styles.bigBtn,
           { paddingVertical: ms(14), borderRadius: ms(16), backgroundColor: bg },

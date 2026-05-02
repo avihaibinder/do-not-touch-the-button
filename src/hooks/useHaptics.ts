@@ -2,19 +2,29 @@ import { useCallback } from 'react';
 import * as Haptics from 'expo-haptics';
 import { useGame } from '../context/GameContext';
 
+export interface HapticsApi {
+  light: () => void;
+  medium: () => void;
+  heavy: () => void;
+  success: () => void;
+  warning: () => void;
+  error: () => void;
+  select: () => void;
+}
+
 /**
  * Centralised haptics. All calls are guarded so they never throw on web/simulator.
  */
-export default function useHaptics() {
+export default function useHaptics(): HapticsApi {
   const { settings } = useGame();
-  const enabled = settings?.haptics !== false;
+  const enabled = settings.haptics !== false;
 
   const safe = useCallback(
-    (fn) => {
+    (fn: () => unknown) => {
       if (!enabled) return;
       try {
         fn();
-      } catch (e) {
+      } catch {
         // ignore
       }
     },

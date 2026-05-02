@@ -1,25 +1,24 @@
-import React, { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { View, StyleSheet, Text } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
-  withTiming,
-  Easing,
   interpolateColor,
-  useDerivedValue,
 } from 'react-native-reanimated';
 import useResponsive from '../hooks/useResponsive';
 import { colors } from '../theme/colors';
 
+export interface TimerBarProps {
+  total: number;
+  remaining: number;
+  running: boolean;
+}
+
 /**
  * Cartoon-style timer bar at the top of the screen.
- * Props:
- *   total (s)
- *   remaining (s)
- *   running (bool)
  */
-export default function TimerBar({ total, remaining, running }) {
-  const { ms, fs, width } = useResponsive();
+export default function TimerBar({ total, remaining, running }: TimerBarProps) {
+  const { ms, fs } = useResponsive();
   const progress = useSharedValue(1);
 
   useEffect(() => {

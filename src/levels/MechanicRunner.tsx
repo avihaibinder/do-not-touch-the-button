@@ -1,9 +1,8 @@
-import React, {
+import {
   useEffect,
   useMemo,
   useRef,
   useState,
-  useCallback,
 } from 'react';
 import { View, StyleSheet, Pressable, Text } from 'react-native';
 import Animated, {
@@ -15,48 +14,49 @@ import Animated, {
   cancelAnimation,
   Easing,
 } from 'react-native-reanimated';
+import type { GestureResponderEvent, LayoutRectangle } from 'react-native';
 
 import RedButton from '../components/RedButton';
 import { colors } from '../theme/colors';
 import useHaptics from '../hooks/useHaptics';
 import useSounds from '../hooks/useSounds';
+import type { FailReason, Mechanic, MechanicParams, PlayArea } from '../types';
+
+export interface MechanicRunnerProps {
+  mechanic: Mechanic;
+  params: MechanicParams;
+  playArea: PlayArea;
+  buttonSize: number;
+  colorOverride?: string;
+  accentOverride?: string;
+  running: boolean;
+  bossMode?: boolean;
+  onTapHit?: () => void;
+  onComplete?: () => void;
+  onFail?: (reason: FailReason) => void;
+}
 
 /**
  * Plays out a mechanic inside a fixed-size play area.
  *
- * Props:
- *   mechanic        string
- *   params          mechanic-specific
- *   playArea        { width, height }  – pixel size of the play surface
- *   buttonSize      number             – default red button diameter
- *   colorOverride   string             – e.g., boss color for boss fights
- *   accentOverride  string
- *   running         bool
- *   bossMode        bool (suppresses progress dots, hint pills, and mechanic
- *                   auto-completion — useful when an HP bar is the win cond)
- *   onTapHit        () => void         – fired each time the real button is hit
- *   onComplete      () => void         – fired when the mechanic objective is met
- *   onFail          (reason) => void   – fired when the player loses (decoy / trap / etc.)
- *
- * Mechanics interpret params per the levelConfigs.js docblock.
+ * Mechanics interpret params per the levelConfigs.ts docblock.
  */
-export default function MechanicRunner(props) {
-  const { mechanic } = props;
-  switch (mechanic) {
-    case 'static':     return <StaticMech     {...props} />;
-    case 'teleport':   return <TeleportMech   {...props} />;
-    case 'shrink':     return <ShrinkMech     {...props} />;
-    case 'orbit':      return <OrbitMech      {...props} />;
-    case 'decoys':     return <DecoysMech     {...props} />;
-    case 'proximity':  return <ProximityMech  {...props} />;
-    case 'flash':      return <FlashMech      {...props} />;
-    case 'longpress':  return <LongPressMech  {...props} />;
-    case 'rhythm':     return <RhythmMech     {...props} />;
-    case 'mirror':     return <MirrorMech     {...props} />;
-    case 'trap':       return <TrapMech       {...props} />;
-    case 'multi':      return <MultiMech      {...props} />;
-    case 'combo':      return <ComboMech      {...props} />;
-    default:           return <StaticMech     {...props} />;
+export default function MechanicRunner(props: MechanicRunnerProps) {
+  switch (props.mechanic) {
+    case 'static':    return <StaticMech {...props} />;
+    case 'teleport':  return <TeleportMech {...props} />;
+    case 'shrink':    return <ShrinkMech {...props} />;
+    case 'orbit':     return <OrbitMech {...props} />;
+    case 'decoys':    return <DecoysMech {...props} />;
+    case 'proximity': return <ProximityMech {...props} />;
+    case 'flash':     return <FlashMech {...props} />;
+    case 'longpress': return <LongPressMech {...props} />;
+    case 'rhythm':    return <RhythmMech {...props} />;
+    case 'mirror':    return <MirrorMech {...props} />;
+    case 'trap':      return <TrapMech {...props} />;
+    case 'multi':     return <MultiMech {...props} />;
+    case 'combo':     return <ComboMech {...props} />;
+    default:          return <StaticMech {...props} />;
   }
 }
 
@@ -64,29 +64,24 @@ export default function MechanicRunner(props) {
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-function clampPos(x, y, w, h, padding) {
-  return {
-    x: Math.max(padding, Math.min(w - padding, x)),
-    y: Math.max(padding, Math.min(h - padding, y)),
-  };
-}
+interface Point { x: number; y: number; }
 
-function randomPos(w, h, padding) {
+function randomPos(w: number, h: number, padding: number): Point {
   const x = padding + Math.random() * (w - padding * 2);
   const y = padding + Math.random() * (h - padding * 2);
   return { x, y };
 }
 
-function distance(ax, ay, bx, by) {
+function distance(ax: number, ay: number, bx: number, by: number): number {
   const dx = ax - bx, dy = ay - by;
   return Math.sqrt(dx * dx + dy * dy);
 }
 
 // generate N positions in distinct quadrants/grid cells
-function gridPositions(n, w, h, padding) {
+function gridPositions(n: number, w: number, h: number, padding: number): Point[] {
   const cols = Math.ceil(Math.sqrt(n));
   const rows = Math.ceil(n / cols);
-  const out = [];
+  const out: Point[] = [];
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
       if (out.length >= n) break;
@@ -100,7 +95,9 @@ function gridPositions(n, w, h, padding) {
   // shuffle
   for (let i = out.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
-    [out[i], out[j]] = [out[j], out[i]];
+    const tmp = out[i];
+    out[i] = out[j];
+    out[j] = tmp;
   }
   return out;
 }
@@ -109,40 +106,99 @@ function gridPositions(n, w, h, padding) {
 // Mechanic 1: STATIC
 // ─────────────────────────────────────────────────────────────────────────────
 
-function StaticMech({ params, playArea, buttonSize, colorOverride, accentOverride, running, onTapHit, onComplete }) {
+function StaticMech({ params, playArea, buttonSize, colorOverride, accentOverride, running, onTapHit, onComplete }: MechanicRunnerProps) {
   const target = params.taps ?? 1;
+  const wakeup = !!params.wakeup;
   const [taps, setTaps] = useState(0);
+  const [waking, setWaking] = useState(false);
   const haptics = useHaptics();
   const sounds = useSounds();
+  const wakeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (taps >= target) onComplete?.();
+  }, [taps, target]);
+
+  useEffect(() => () => {
+    if (wakeTimer.current) clearTimeout(wakeTimer.current);
+  }, []);
 
   const handle = () => {
     if (!running) return;
+    if (wakeup && !waking) {
+      // Gentle wake-up: open eyes, settle for a beat, then advance.
+      setWaking(true);
+      haptics.light();
+      sounds.play('pop');
+      onTapHit?.();
+      wakeTimer.current = setTimeout(() => setTaps((t) => t + 1), 700);
+      return;
+    }
     haptics.medium();
     sounds.play('tap');
     onTapHit?.();
-    setTaps((t) => {
-      const nt = t + 1;
-      if (nt >= target) onComplete?.();
-      return nt;
-    });
+    setTaps((t) => t + 1);
   };
 
   const cx = playArea.width / 2;
   const cy = playArea.height / 2;
+
+  const expression = wakeup ? (waking ? 'happy' : 'sleeping') : 'grin';
 
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
       <ButtonAt cx={cx} cy={cy} size={buttonSize}>
         <RedButton
           size={buttonSize}
-          expression="grin"
+          expression={expression}
           colorOverride={colorOverride}
           accentOverride={accentOverride}
+          suppressHurt={wakeup}
           onPress={handle}
         />
+        {wakeup && <SleepZs size={buttonSize} visible={!waking} />}
       </ButtonAt>
-      <ProgressDots count={target} done={taps} />
+      {!wakeup && <ProgressDots count={target} done={taps} />}
     </View>
+  );
+}
+
+function SleepZs({ size, visible }: { size: number; visible: boolean }) {
+  const op = useSharedValue(visible ? 1 : 0);
+  const drift = useSharedValue(0);
+
+  useEffect(() => {
+    op.value = withTiming(visible ? 1 : 0, { duration: 260 });
+  }, [visible]);
+
+  useEffect(() => {
+    drift.value = withRepeat(
+      withTiming(1, { duration: 1800, easing: Easing.inOut(Easing.quad) }),
+      -1,
+      true,
+    );
+    return () => cancelAnimation(drift);
+  }, []);
+
+  const wrapStyle = useAnimatedStyle(() => ({
+    opacity: op.value,
+    transform: [{ translateY: -size * 0.05 * drift.value }],
+  }));
+
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={[{
+        position: 'absolute',
+        right: -size * 0.04,
+        top: -size * 0.12,
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+      }, wrapStyle]}
+    >
+      <Text style={{ color: colors.ink, fontWeight: '900', fontSize: size * 0.13, marginRight: 2, opacity: 0.6 }}>z</Text>
+      <Text style={{ color: colors.ink, fontWeight: '900', fontSize: size * 0.20 }}>Z</Text>
+    </Animated.View>
   );
 }
 
@@ -150,7 +206,7 @@ function StaticMech({ params, playArea, buttonSize, colorOverride, accentOverrid
 // Mechanic 2: TELEPORT
 // ─────────────────────────────────────────────────────────────────────────────
 
-function TeleportMech({ params, playArea, buttonSize, colorOverride, accentOverride, running, onTapHit, onComplete }) {
+function TeleportMech({ params, playArea, buttonSize, colorOverride, accentOverride, running, onTapHit, onComplete }: MechanicRunnerProps) {
   const target = params.taps ?? params.positions ?? 2;
   const haptics = useHaptics();
   const sounds = useSounds();
@@ -181,25 +237,21 @@ function TeleportMech({ params, playArea, buttonSize, colorOverride, accentOverr
     ],
   }));
 
+  useEffect(() => {
+    if (taps >= target) onComplete?.();
+    else if (taps > 0) setIdx((i) => i + 1);
+  }, [taps, target]);
+
   const handle = () => {
     if (!running) return;
     haptics.medium();
     sounds.play('tap');
     onTapHit?.();
-    setTaps((t) => {
-      const nt = t + 1;
-      if (nt >= target) {
-        onComplete?.();
-      } else {
-        setIdx((i) => i + 1);
-      }
-      return nt;
-    });
+    setTaps((t) => t + 1);
   };
 
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
-      {/* hint of next position */}
       <HintCircle x={nextPos.x} y={nextPos.y} size={buttonSize * 0.55} />
 
       <Animated.View style={[styles.absButton, { width: buttonSize, height: buttonSize }, buttonStyle]}>
@@ -221,7 +273,7 @@ function TeleportMech({ params, playArea, buttonSize, colorOverride, accentOverr
 // Mechanic 3: SHRINK
 // ─────────────────────────────────────────────────────────────────────────────
 
-function ShrinkMech({ params, playArea, buttonSize, colorOverride, accentOverride, running, onTapHit, onComplete }) {
+function ShrinkMech({ params, playArea, buttonSize, colorOverride, accentOverride, running, onTapHit, onComplete }: MechanicRunnerProps) {
   const target = params.taps ?? 5;
   const endScale = params.endScale ?? 0.4;
   const haptics = useHaptics();
@@ -230,7 +282,7 @@ function ShrinkMech({ params, playArea, buttonSize, colorOverride, accentOverrid
   const [taps, setTaps] = useState(0);
 
   // Pick a fresh position each shrink so the player has to chase a little.
-  const [pos, setPos] = useState(() =>
+  const [pos, setPos] = useState<Point>(() =>
     randomPos(playArea.width, playArea.height, buttonSize)
   );
   const cx = useSharedValue(pos.x);
@@ -243,23 +295,21 @@ function ShrinkMech({ params, playArea, buttonSize, colorOverride, accentOverrid
 
   const scale = useSharedValue(1);
 
+  useEffect(() => {
+    if (taps === 0) return;
+    const ratio = taps / target;
+    const targetScale = 1 - (1 - endScale) * ratio;
+    scale.value = withSpring(targetScale, { damping: 10, stiffness: 220 });
+    if (taps >= target) onComplete?.();
+    else setPos(randomPos(playArea.width, playArea.height, buttonSize));
+  }, [taps, target, endScale]);
+
   const handle = () => {
     if (!running) return;
     haptics.medium();
     sounds.play('pop');
     onTapHit?.();
-    setTaps((t) => {
-      const nt = t + 1;
-      const ratio = nt / target;
-      const targetScale = 1 - (1 - endScale) * ratio;
-      scale.value = withSpring(targetScale, { damping: 10, stiffness: 220 });
-      if (nt >= target) {
-        onComplete?.();
-      } else {
-        setPos(randomPos(playArea.width, playArea.height, buttonSize));
-      }
-      return nt;
-    });
+    setTaps((t) => t + 1);
   };
 
   const animStyle = useAnimatedStyle(() => ({
@@ -290,7 +340,7 @@ function ShrinkMech({ params, playArea, buttonSize, colorOverride, accentOverrid
 // Mechanic 4: ORBIT
 // ─────────────────────────────────────────────────────────────────────────────
 
-function OrbitMech({ params, playArea, buttonSize, colorOverride, accentOverride, running, onTapHit, onComplete }) {
+function OrbitMech({ params, playArea, buttonSize, colorOverride, accentOverride, running, onTapHit, onComplete }: MechanicRunnerProps) {
   const target = params.taps ?? 4;
   const periodMs = params.periodMs ?? 4000;
   const radius = (params.radius ?? 0.30) * Math.min(playArea.width, playArea.height);
@@ -318,16 +368,16 @@ function OrbitMech({ params, playArea, buttonSize, colorOverride, accentOverride
     };
   });
 
+  useEffect(() => {
+    if (taps >= target) onComplete?.();
+  }, [taps, target]);
+
   const handle = () => {
     if (!running) return;
     haptics.medium();
     sounds.play('tap');
     onTapHit?.();
-    setTaps((c) => {
-      const nc = c + 1;
-      if (nc >= target) onComplete?.();
-      return nc;
-    });
+    setTaps((c) => c + 1);
   };
 
   return (
@@ -347,7 +397,7 @@ function OrbitMech({ params, playArea, buttonSize, colorOverride, accentOverride
   );
 }
 
-function OrbitTrail({ cx, cy, radius }) {
+function OrbitTrail({ cx, cy, radius }: { cx: number; cy: number; radius: number }) {
   return (
     <View
       pointerEvents="none"
@@ -370,7 +420,7 @@ function OrbitTrail({ cx, cy, radius }) {
 // Mechanic 5: DECOYS
 // ─────────────────────────────────────────────────────────────────────────────
 
-function DecoysMech({ params, playArea, buttonSize, colorOverride, accentOverride, running, onTapHit, onComplete, onFail }) {
+function DecoysMech({ params, playArea, buttonSize, colorOverride, accentOverride, running, onTapHit, onComplete, onFail }: MechanicRunnerProps) {
   const target = params.taps ?? 1;
   const decoyCount = params.decoys ?? 2;
   const haptics = useHaptics();
@@ -387,17 +437,17 @@ function DecoysMech({ params, playArea, buttonSize, colorOverride, accentOverrid
     return { positions, realIndex };
   }, [round, decoyCount, playArea.width, playArea.height, buttonSize]);
 
+  useEffect(() => {
+    if (taps >= target) onComplete?.();
+    else if (taps > 0) setRound((r) => r + 1);
+  }, [taps, target]);
+
   const handleHit = () => {
     if (!running) return;
     haptics.medium();
     sounds.play('tap');
     onTapHit?.();
-    setTaps((c) => {
-      const nc = c + 1;
-      if (nc >= target) onComplete?.();
-      else setRound((r) => r + 1);
-      return nc;
-    });
+    setTaps((c) => c + 1);
   };
 
   const handleDecoy = () => {
@@ -430,7 +480,7 @@ function DecoysMech({ params, playArea, buttonSize, colorOverride, accentOverrid
 // Mechanic 6: PROXIMITY  (button dodges the finger)
 // ─────────────────────────────────────────────────────────────────────────────
 
-function ProximityMech({ params, playArea, buttonSize, colorOverride, accentOverride, running, onTapHit, onComplete }) {
+function ProximityMech({ params, playArea, buttonSize, colorOverride, accentOverride, running, onTapHit, onComplete }: MechanicRunnerProps) {
   const target = params.taps ?? 3;
   const threshold = params.threshold ?? 130;
   const dodge = params.dodge ?? 90;
@@ -450,10 +500,12 @@ function ProximityMech({ params, playArea, buttonSize, colorOverride, accentOver
   }));
 
   // The "field" tracks finger position and pushes the button away if finger is near.
-  // We use onTouch* (not the responder system) so taps still pass through to the
-  // inner Pressable and the button's onPress fires correctly.
-  const fieldRef = useRef({ x: 0, y: 0 });
-  const handleTouch = (e) => {
+  // The wrapper must be a touch target itself (no pointerEvents="box-none"), or
+  // else taps on empty space never fire onTouchStart and the button never dodges.
+  // The inner Pressable still wins the responder for taps that land on it, so
+  // onPress keeps working.
+  const fieldRef = useRef<LayoutRectangle>({ x: 0, y: 0, width: 0, height: 0 });
+  const handleTouch = (e: GestureResponderEvent) => {
     if (!running) return;
     const ne = e.nativeEvent;
     const layout = fieldRef.current;
@@ -474,22 +526,21 @@ function ProximityMech({ params, playArea, buttonSize, colorOverride, accentOver
     }
   };
 
+  useEffect(() => {
+    if (taps >= target) onComplete?.();
+  }, [taps, target]);
+
   const handleHit = () => {
     if (!running) return;
     haptics.medium();
     sounds.play('tap');
     onTapHit?.();
-    setTaps((c) => {
-      const nc = c + 1;
-      if (nc >= target) onComplete?.();
-      return nc;
-    });
+    setTaps((c) => c + 1);
   };
 
   return (
     <View
       style={StyleSheet.absoluteFill}
-      pointerEvents="box-none"
       onLayout={(e) => { fieldRef.current = e.nativeEvent.layout; }}
       onTouchStart={handleTouch}
       onTouchMove={handleTouch}
@@ -512,7 +563,7 @@ function ProximityMech({ params, playArea, buttonSize, colorOverride, accentOver
 // Mechanic 7: FLASH
 // ─────────────────────────────────────────────────────────────────────────────
 
-function FlashMech({ params, playArea, buttonSize, colorOverride, accentOverride, running, onTapHit, onComplete, onFail }) {
+function FlashMech({ params, playArea, buttonSize, colorOverride, accentOverride, running, onTapHit, onComplete }: MechanicRunnerProps) {
   const target = params.taps ?? 3;
   const visibleMs = params.visibleMs ?? 600;
   const hiddenMs = params.hiddenMs ?? 600;
@@ -521,14 +572,14 @@ function FlashMech({ params, playArea, buttonSize, colorOverride, accentOverride
 
   const [taps, setTaps] = useState(0);
   const [visible, setVisible] = useState(true);
-  const [pos, setPos] = useState(() =>
+  const [pos, setPos] = useState<Point>(() =>
     randomPos(playArea.width, playArea.height, buttonSize)
   );
 
   useEffect(() => {
     if (!running) return;
-    let t;
-    const tick = (showing) => {
+    let t: ReturnType<typeof setTimeout>;
+    const tick = (showing: boolean) => {
       setVisible(showing);
       if (showing) setPos(randomPos(playArea.width, playArea.height, buttonSize));
       t = setTimeout(() => tick(!showing), showing ? visibleMs : hiddenMs);
@@ -537,16 +588,16 @@ function FlashMech({ params, playArea, buttonSize, colorOverride, accentOverride
     return () => clearTimeout(t);
   }, [running, visibleMs, hiddenMs, playArea.width, playArea.height, buttonSize]);
 
+  useEffect(() => {
+    if (taps >= target) onComplete?.();
+  }, [taps, target]);
+
   const handle = () => {
     if (!running) return;
     haptics.medium();
     sounds.play('tap');
     onTapHit?.();
-    setTaps((c) => {
-      const nc = c + 1;
-      if (nc >= target) onComplete?.();
-      return nc;
-    });
+    setTaps((c) => c + 1);
   };
 
   return (
@@ -571,20 +622,18 @@ function FlashMech({ params, playArea, buttonSize, colorOverride, accentOverride
 // Mechanic 8: LONG PRESS
 // ─────────────────────────────────────────────────────────────────────────────
 
-function LongPressMech({ params, playArea, buttonSize, colorOverride, accentOverride, running, onTapHit, onComplete }) {
+function LongPressMech({ params, playArea, buttonSize, colorOverride, accentOverride, running, onTapHit, onComplete }: MechanicRunnerProps) {
   const holdMs = params.holdMs ?? 1500;
   const haptics = useHaptics();
   const sounds = useSounds();
 
   const [held, setHeld] = useState(false);
   const progress = useSharedValue(0);
-  const holdStart = useRef(0);
-  const tickHandle = useRef(null);
+  const tickHandle = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const onIn = () => {
     if (!running) return;
     setHeld(true);
-    holdStart.current = Date.now();
     progress.value = 0;
     progress.value = withTiming(1, { duration: holdMs, easing: Easing.linear });
     haptics.light();
@@ -605,7 +654,9 @@ function LongPressMech({ params, playArea, buttonSize, colorOverride, accentOver
     }
   };
 
-  useEffect(() => () => tickHandle.current && clearTimeout(tickHandle.current), []);
+  useEffect(() => () => {
+    if (tickHandle.current) clearTimeout(tickHandle.current);
+  }, []);
 
   const ringStyle = useAnimatedStyle(() => ({
     transform: [{ scale: 1 + 0.18 * progress.value }],
@@ -651,7 +702,7 @@ function LongPressMech({ params, playArea, buttonSize, colorOverride, accentOver
 // Mechanic 9: RHYTHM
 // ─────────────────────────────────────────────────────────────────────────────
 
-function RhythmMech({ params, playArea, buttonSize, colorOverride, accentOverride, running, onTapHit, onComplete, onFail }) {
+function RhythmMech({ params, playArea, buttonSize, colorOverride, accentOverride, running, onTapHit, onComplete }: MechanicRunnerProps) {
   const target = params.taps ?? 4;
   const windowMs = params.windowMs ?? 600;
   const minGapMs = params.minGapMs ?? 180;
@@ -681,12 +732,12 @@ function RhythmMech({ params, playArea, buttonSize, colorOverride, accentOverrid
     haptics.medium();
     sounds.play('tap');
     onTapHit?.();
-    setTaps((c) => {
-      const nc = c + 1;
-      if (nc >= target) onComplete?.();
-      return nc;
-    });
+    setTaps((c) => c + 1);
   };
+
+  useEffect(() => {
+    if (taps >= target) onComplete?.();
+  }, [taps, target]);
 
   const cx = playArea.width / 2;
   const cy = playArea.height / 2;
@@ -712,27 +763,27 @@ function RhythmMech({ params, playArea, buttonSize, colorOverride, accentOverrid
 // Mechanic 10: MIRROR  (x flipped)
 // ─────────────────────────────────────────────────────────────────────────────
 
-function MirrorMech({ params, playArea, buttonSize, colorOverride, accentOverride, running, onTapHit, onComplete }) {
+function MirrorMech({ params, playArea, buttonSize, colorOverride, accentOverride, running, onTapHit, onComplete }: MechanicRunnerProps) {
   const target = params.taps ?? 3;
   const haptics = useHaptics();
   const sounds = useSounds();
 
   const [taps, setTaps] = useState(0);
-  const [pos, setPos] = useState(() =>
+  const [pos, setPos] = useState<Point>(() =>
     randomPos(playArea.width, playArea.height, buttonSize)
   );
+
+  useEffect(() => {
+    if (taps >= target) onComplete?.();
+    else if (taps > 0) setPos(randomPos(playArea.width, playArea.height, buttonSize));
+  }, [taps, target, playArea.width, playArea.height, buttonSize]);
 
   const handle = () => {
     if (!running) return;
     haptics.medium();
     sounds.play('tap');
     onTapHit?.();
-    setTaps((c) => {
-      const nc = c + 1;
-      if (nc >= target) onComplete?.();
-      else setPos(randomPos(playArea.width, playArea.height, buttonSize));
-      return nc;
-    });
+    setTaps((c) => c + 1);
   };
 
   // Mirror the entire play area horizontally so taps are visually inverted.
@@ -763,7 +814,7 @@ function MirrorMech({ params, playArea, buttonSize, colorOverride, accentOverrid
 // Mechanic 11: TRAP
 // ─────────────────────────────────────────────────────────────────────────────
 
-function TrapMech({ params, playArea, buttonSize, colorOverride, accentOverride, running, onTapHit, onComplete, onFail }) {
+function TrapMech({ params, playArea, buttonSize, colorOverride, accentOverride, running, onTapHit, onComplete, onFail }: MechanicRunnerProps) {
   const target = params.taps ?? 3;
   const trapCount = params.traps ?? 3;
   const trapRadiusFactor = params.trapRadius ?? 0.12;
@@ -777,7 +828,7 @@ function TrapMech({ params, playArea, buttonSize, colorOverride, accentOverride,
     const padding = buttonSize / 2 + 16;
     const buttonPos = randomPos(playArea.width, playArea.height, padding);
     const trapR = trapRadiusFactor * Math.min(playArea.width, playArea.height);
-    const traps = [];
+    const traps: Point[] = [];
     let safety = 0;
     while (traps.length < trapCount && safety < 80) {
       safety++;
@@ -794,17 +845,17 @@ function TrapMech({ params, playArea, buttonSize, colorOverride, accentOverride,
     return { buttonPos, traps, trapR };
   }, [round, trapCount, trapRadiusFactor, playArea.width, playArea.height, buttonSize]);
 
+  useEffect(() => {
+    if (taps >= target) onComplete?.();
+    else if (taps > 0) setRound((r) => r + 1);
+  }, [taps, target]);
+
   const handle = () => {
     if (!running) return;
     haptics.medium();
     sounds.play('tap');
     onTapHit?.();
-    setTaps((c) => {
-      const nc = c + 1;
-      if (nc >= target) onComplete?.();
-      else setRound((r) => r + 1);
-      return nc;
-    });
+    setTaps((c) => c + 1);
   };
 
   const handleTrap = () => {
@@ -855,14 +906,14 @@ function TrapMech({ params, playArea, buttonSize, colorOverride, accentOverride,
 // Mechanic 12: MULTI (rapid-fire taps, optional)
 // ─────────────────────────────────────────────────────────────────────────────
 
-function MultiMech({ params, playArea, buttonSize, colorOverride, accentOverride, running, onTapHit, onComplete, onFail }) {
+function MultiMech({ params, playArea, buttonSize, colorOverride, accentOverride, running, onTapHit, onComplete, onFail }: MechanicRunnerProps) {
   const target = params.taps ?? 8;
   const windowMs = params.windowMs ?? 2000;
   const haptics = useHaptics();
   const sounds = useSounds();
 
   const [taps, setTaps] = useState(0);
-  const [start, setStart] = useState(null);
+  const [start, setStart] = useState<number | null>(null);
 
   useEffect(() => {
     if (taps === 1) setStart(Date.now());
@@ -902,7 +953,7 @@ function MultiMech({ params, playArea, buttonSize, colorOverride, accentOverride
 // Mechanic 13: COMBO
 // ─────────────────────────────────────────────────────────────────────────────
 
-function ComboMech({ params, ...rest }) {
+function ComboMech({ params, ...rest }: MechanicRunnerProps) {
   const stages = params.stages ?? [];
   const [stageIdx, setStageIdx] = useState(0);
 
@@ -939,7 +990,7 @@ function ComboMech({ params, ...rest }) {
 // Shared helpers / mini-components
 // ─────────────────────────────────────────────────────────────────────────────
 
-function ButtonAt({ cx, cy, size, children }) {
+function ButtonAt({ cx, cy, size, children }: { cx: number; cy: number; size: number; children: React.ReactNode }) {
   return (
     <View
       style={{
@@ -955,7 +1006,7 @@ function ButtonAt({ cx, cy, size, children }) {
   );
 }
 
-function HintCircle({ x, y, size }) {
+function HintCircle({ x, y, size }: { x: number; y: number; size: number }) {
   const t = useSharedValue(0);
   useEffect(() => {
     t.value = withRepeat(withTiming(1, { duration: 900, easing: Easing.inOut(Easing.quad) }), -1, true);
@@ -986,7 +1037,7 @@ function HintCircle({ x, y, size }) {
   );
 }
 
-function Hint({ text }) {
+function Hint({ text }: { text: string }) {
   return (
     <View pointerEvents="none" style={styles.hintWrap}>
       <View style={styles.hintPill}>
@@ -996,7 +1047,7 @@ function Hint({ text }) {
   );
 }
 
-function ProgressDots({ count, done }) {
+function ProgressDots({ count, done }: { count: number; done: number }) {
   // Don't render when count is missing, zero, or sentinel-large (e.g. boss mode `taps: 999`).
   if (!Number.isFinite(count) || count <= 0 || count > 30) return null;
   const dots = Array.from({ length: count }).map((_, i) => i < done);

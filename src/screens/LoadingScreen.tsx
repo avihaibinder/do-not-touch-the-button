@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -9,6 +9,7 @@ import Animated, {
   withSpring,
   withTiming,
   Easing,
+  type SharedValue,
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -84,7 +85,7 @@ export default function LoadingScreen() {
           </Text>
         </Animated.View>
 
-        <Dots t={dotsT} ms={ms} fs={fs} />
+        <Dots t={dotsT} ms={ms} />
 
         <Text style={[styles.tip, { fontSize: fs(12), marginTop: ms(28) }]}>
           (you’re going to want to click it)
@@ -94,8 +95,13 @@ export default function LoadingScreen() {
   );
 }
 
-function Dots({ t, ms, fs }) {
-  const a = useAnimatedStyle(() => ({ opacity: 0.2 + 0.8 * Math.max(0, Math.sin((t.value + 0.0) * Math.PI * 2)) }));
+interface DotsProps {
+  t: SharedValue<number>;
+  ms: (n: number) => number;
+}
+
+function Dots({ t, ms }: DotsProps) {
+  const a = useAnimatedStyle(() => ({ opacity: 0.2 + 0.8 * Math.max(0, Math.sin((t.value + 0.0)  * Math.PI * 2)) }));
   const b = useAnimatedStyle(() => ({ opacity: 0.2 + 0.8 * Math.max(0, Math.sin((t.value + 0.33) * Math.PI * 2)) }));
   const c = useAnimatedStyle(() => ({ opacity: 0.2 + 0.8 * Math.max(0, Math.sin((t.value + 0.66) * Math.PI * 2)) }));
   return (

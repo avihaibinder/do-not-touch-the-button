@@ -29,9 +29,18 @@ export const colors = {
   shadow: 'rgba(26, 26, 46, 0.18)',
   scrim: 'rgba(26, 26, 46, 0.55)',
   trap: 'rgba(255, 59, 71, 0.18)',
-};
+} as const;
 
-export const gradients = {
+type Tuple3 = readonly [string, string, string];
+type Tuple2 = readonly [string, string];
+
+export const gradients: {
+  bg: Tuple3;
+  buttonRed: Tuple3;
+  buttonGlow: Tuple2;
+  success: Tuple2;
+  fail: Tuple2;
+} = {
   bg: [colors.bgTop, colors.bgMid, colors.bgBottom],
   buttonRed: ['#FF6B6B', '#FF3B47', '#C81E2B'],
   buttonGlow: ['rgba(255,107,107,0.0)', 'rgba(255,59,71,0.35)'],

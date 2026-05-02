@@ -1,30 +1,32 @@
-import React, { useEffect } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { useEffect } from 'react';
+import { View, Text, StyleSheet, type DimensionValue } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
-  withRepeat,
   withSequence,
   withTiming,
   withSpring,
-  Easing,
   interpolateColor,
 } from 'react-native-reanimated';
 import { colors } from '../theme/colors';
 import useResponsive from '../hooks/useResponsive';
 
+export interface BossCharacterProps {
+  name: string;
+  title: string;
+  hp: number;
+  maxHp: number;
+  color?: string;
+  accent?: string;
+  /** Any value that changes when the boss takes a hit – triggers shake */
+  shakeKey?: number;
+}
+
 /**
- * Boss HP bar + name plate. Shown above the boss in BossScreen.
- *
- * Props:
- *   name, title (e.g., 'Boss 1 / 3')
- *   hp, maxHp
- *   color
- *   accent
- *   shakeKey   (any value that changes when boss takes a hit – triggers shake)
+ * Boss HP bar + name plate. Shown above the boss in BossFight.
  */
-export default function BossCharacter({ name, title, hp, maxHp, color, accent, shakeKey }) {
-  const { ms, fs, width } = useResponsive();
+export default function BossCharacter({ name, title, hp, maxHp, color, shakeKey }: BossCharacterProps) {
+  const { ms, fs } = useResponsive();
   const shake = useSharedValue(0);
   const fillW = useSharedValue(1);
   const flash = useSharedValue(0);
@@ -49,7 +51,7 @@ export default function BossCharacter({ name, title, hp, maxHp, color, accent, s
     transform: [{ translateX: shake.value * 6 }],
   }));
   const fillStyle = useAnimatedStyle(() => ({
-    width: `${Math.max(0, fillW.value) * 100}%`,
+    width: `${Math.max(0, fillW.value) * 100}%` as DimensionValue,
     backgroundColor: interpolateColor(
       fillW.value,
       [0, 0.4, 1],

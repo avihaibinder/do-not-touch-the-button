@@ -1,6 +1,24 @@
 import { useMemo } from 'react';
 import { Dimensions, useWindowDimensions, PixelRatio, Platform } from 'react-native';
 
+export type SizeBucket = 'small' | 'medium' | 'large' | 'tablet';
+
+export interface Responsive {
+  width: number;
+  height: number;
+  minDim: number;
+  maxDim: number;
+  size: SizeBucket;
+  isTablet: boolean;
+  isLandscape: boolean;
+  scale: number;
+  ms: (n: number) => number;
+  fs: (n: number) => number;
+  buttonBase: number;
+  pixel: number;
+  platform: typeof Platform.OS;
+}
+
 /**
  * Responsive sizing hook.
  * Breakpoints (logical px width):
@@ -9,14 +27,14 @@ import { Dimensions, useWindowDimensions, PixelRatio, Platform } from 'react-nat
  *   large  : 415 - 767  (large phones / phablets)
  *   tablet : >= 768
  */
-export default function useResponsive() {
+export default function useResponsive(): Responsive {
   const { width, height } = useWindowDimensions();
 
-  return useMemo(() => {
+  return useMemo<Responsive>(() => {
     const minDim = Math.min(width, height);
     const maxDim = Math.max(width, height);
 
-    let size = 'medium';
+    let size: SizeBucket;
     if (minDim <= 360) size = 'small';
     else if (minDim <= 414) size = 'medium';
     else if (minDim < 768) size = 'large';
@@ -29,10 +47,9 @@ export default function useResponsive() {
     const scale = Math.min(width, 1.0 * 390) / 390;
     const tabletBoost = isTablet ? 1.25 : 1;
 
-    const ms = (n) => Math.round(n * scale * tabletBoost);
-    const fs = (n) => Math.max(11, Math.round(n * scale * tabletBoost));
+    const ms = (n: number) => Math.round(n * scale * tabletBoost);
+    const fs = (n: number) => Math.max(11, Math.round(n * scale * tabletBoost));
 
-    // Button base size scales generously
     const buttonBase = Math.round(
       Math.min(width, height) * (isTablet ? 0.32 : 0.45)
     );
@@ -46,17 +63,16 @@ export default function useResponsive() {
       isTablet,
       isLandscape,
       scale,
-      ms,         // margin/spacing scale
-      fs,         // font scale
-      buttonBase, // default red-button diameter
+      ms,
+      fs,
+      buttonBase,
       pixel: 1 / PixelRatio.get(),
       platform: Platform.OS,
     };
   }, [width, height]);
 }
 
-// Static helper for files without hooks access.
-export function staticDims() {
+export function staticDims(): { width: number; height: number } {
   const { width, height } = Dimensions.get('window');
   return { width, height };
 }

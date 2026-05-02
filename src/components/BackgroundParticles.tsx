@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { View, StyleSheet, Dimensions } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -10,14 +10,32 @@ import Animated, {
 } from 'react-native-reanimated';
 import { colors } from '../theme/colors';
 
+export interface BackgroundParticlesProps {
+  count?: number;
+  hue?: 'red' | 'mixed';
+}
+
+interface BubbleSpec {
+  id: number;
+  x: number;
+  yStart: number;
+  yEnd: number;
+  size: number;
+  duration: number;
+  delay: number;
+  color: string;
+  drift: number;
+  opacity: number;
+}
+
 /**
  * Drifty floating background bubbles for the menu and loading screens.
  * Cheap and decorative.
  */
-export default function BackgroundParticles({ count = 14, hue = 'mixed' }) {
+export default function BackgroundParticles({ count = 14, hue = 'mixed' }: BackgroundParticlesProps) {
   const { width, height } = Dimensions.get('window');
 
-  const items = useMemo(() => {
+  const items = useMemo<BubbleSpec[]>(() => {
     const palette = hue === 'red'
       ? [colors.red, colors.orange, colors.yellow]
       : [colors.red, colors.yellow, colors.turquoise, colors.purple, colors.orange, colors.green];
@@ -42,7 +60,7 @@ export default function BackgroundParticles({ count = 14, hue = 'mixed' }) {
   );
 }
 
-function Bubble({ x, yStart, yEnd, size, duration, delay, color, drift, opacity }) {
+function Bubble({ x, yStart, yEnd, size, duration, delay, color, drift, opacity }: BubbleSpec) {
   const t = useSharedValue(0);
 
   useEffect(() => {
@@ -56,16 +74,14 @@ function Bubble({ x, yStart, yEnd, size, duration, delay, color, drift, opacity 
     );
   }, []);
 
-  const style = useAnimatedStyle(() => {
-    return {
-      transform: [
-        { translateX: x + drift * Math.sin(t.value * Math.PI * 2) },
-        { translateY: yStart + (yEnd - yStart) * t.value },
-        { scale: 1 + 0.06 * Math.sin(t.value * Math.PI * 4) },
-      ],
-      opacity,
-    };
-  });
+  const style = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: x + drift * Math.sin(t.value * Math.PI * 2) },
+      { translateY: yStart + (yEnd - yStart) * t.value },
+      { scale: 1 + 0.06 * Math.sin(t.value * Math.PI * 4) },
+    ],
+    opacity,
+  }));
 
   return (
     <Animated.View
